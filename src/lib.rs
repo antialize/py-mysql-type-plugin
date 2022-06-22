@@ -183,6 +183,9 @@ struct Insert {
 
     #[pyo3(get)]
     arguments: HashMap<ArgumentKey, (Type, bool)>,
+
+    #[pyo3(get)]
+    returning: Option<Vec<(Option<std::string::String>, Type, bool)>>,
 }
 
 #[pyclass]
@@ -195,6 +198,9 @@ struct Update {
 struct Replace {
     #[pyo3(get)]
     arguments: HashMap<ArgumentKey, (Type, bool)>,
+
+    #[pyo3(get)]
+    returning: Option<Vec<(Option<std::string::String>, Type, bool)>>,
 }
 
 #[pyclass]
@@ -310,23 +316,28 @@ fn type_statement(
             arguments,
             returning,
         } => {
-            if returning.is_some() {
-                // TODO: Implement RETURNING support
-                issues.push(Issue::err(
-                    "support for RETURNING is not implemented yet",
-                    &(0..statement.len()),
-                ));
-            }
             let yield_autoincrement = match yield_autoincrement {
                 sql_type::AutoIncrementId::Yes => "yes",
                 sql_type::AutoIncrementId::No => "no",
                 sql_type::AutoIncrementId::Optional => "maybe",
             };
+            let returning = returning.map(|r| {
+                r.into_iter()
+                    .map(|v| {
+                        (
+                            v.name.map(|v| v.to_string()),
+                            map_type(&v.type_),
+                            v.type_.not_null,
+                        )
+                    })
+                    .collect()
+            });
             Py::new(
                 py,
                 Insert {
                     yield_autoincrement,
                     arguments: map_arguments(arguments),
+                    returning,
                 },
             )?
             .to_object(py)
@@ -342,17 +353,22 @@ fn type_statement(
             arguments,
             returning,
         } => {
-            if returning.is_some() {
-                // TODO: Implement RETURNING support
-                issues.push(Issue::err(
-                    "support for RETURNING is not implemented yet",
-                    &(0..statement.len()),
-                ));
-            }
+            let returning = returning.map(|r| {
+                r.into_iter()
+                    .map(|v| {
+                        (
+                            v.name.map(|v| v.to_string()),
+                            map_type(&v.type_),
+                            v.type_.not_null,
+                        )
+                    })
+                    .collect()
+            });
             Py::new(
                 py,
                 Replace {
                     arguments: map_arguments(arguments),
+                    returning,
                 },
             )?
             .to_object(py)
