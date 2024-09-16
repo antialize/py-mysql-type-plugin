@@ -250,6 +250,28 @@ class CustomPlugin(Plugin):
                         context.api.fail(f"Could not find mysql_type.SelectResult", ct)
 
                 elif isinstance(stmt, rs.Insert):
+                    # TODO(casper): Is this how `Option<Vec<_>>` is translated: `Optional[List[_]]`?
+                    if stmt.returning is not None:
+                        ntp = []
+                        for (name, type_, not_null) in stmt.returning:
+                            t = map_type(type_, not_null, api, context.context)
+                            ntp.append((name, t))
+                        if sr := self.lookup_fully_qualified("mysql_type.SelectResult"):
+                            if dc:
+                                return Instance(
+                                    sr.node, # type: ignore
+                                    [TypedDictType(
+                                        OrderedDict(ntp),
+                                        set([n for (n,_) in ntp]),
+                                        api.named_generic_type("dict", [])
+                                    )]
+                                )
+                            else:
+                                return Instance(
+                                    sr.node, # type: ignore
+                                    [TupleType([t for (_,t) in ntp], api.named_generic_type("tuple", []))],
+                                )
+
                     if stmt.yield_autoincrement == "yes":
                         if ir := self.lookup_fully_qualified(
                             "mysql_type.InsertWithLastRowIdResult"
@@ -260,6 +282,29 @@ class CustomPlugin(Plugin):
                             "mysql_type.InsertWithOptLastRowIdResult"
                         ):
                             return Instance(ir.node, [])  # type: ignore
+
+                elif isinstance(stmt, rs.Replace):
+                    # TODO(casper): Is this how `Option<Vec<_>>` is translated: `Optional[List[_]]`?
+                    if stmt.returning is not None:
+                        ntp = []
+                        for (name, type_, not_null) in stmt.returning:
+                            t = map_type(type_, not_null, api, context.context)
+                            ntp.append((name, t))
+                        if sr := self.lookup_fully_qualified("mysql_type.SelectResult"):
+                            if dc:
+                                return Instance(
+                                    sr.node, # type: ignore
+                                    [TypedDictType(
+                                        OrderedDict(ntp),
+                                        set([n for (n,_) in ntp]),
+                                        api.named_generic_type("dict", [])
+                                    )]
+                                )
+                            else:
+                                return Instance(
+                                    sr.node, # type: ignore
+                                    [TupleType([t for (_,t) in ntp], api.named_generic_type("tuple", []))],
+                                )
                 if other := self.lookup_fully_qualified("mysql_type.OtherResult"):
                     return Instance(other.node, [])  # type: ignore
                 return NoneType()
