@@ -1,8 +1,3 @@
 # py-mysql-type-plugin
 
-To test locally, run e.g.:
-```sh
-rm -f *.whl && \
-python3 -m pip wheel -e . && \
-pip install --user --force-reinstall *.whl --break-system-packages
-```
+This project has moved to the qusql-py-mysql-type-plugin subfolder of https://github.com/antialize/qusql/
